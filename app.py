@@ -15,7 +15,8 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return "Voice backend is running"
+
 
 @app.route('/upload', methods=['POST'])
 def upload_audio():
