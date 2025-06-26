@@ -1,0 +1,6 @@
+flask
+flask-cors
+pydub
+soundfile
+matplotlib
+numpy
