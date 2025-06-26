@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
-from pydub import AudioSegment
+import ffmpeg
+
 import io
 import soundfile as sf
 import matplotlib
@@ -25,11 +26,19 @@ def upload_audio():
 
     try:
         webm_audio = file.read()
-        audio = AudioSegment.from_file(io.BytesIO(webm_audio), format="webm")
 
-        wav_io = io.BytesIO()
-        audio.export(wav_io, format="wav")
+# Use ffmpeg-python to convert .webm to .wav
+        process = (
+            ffmpeg
+            .input('pipe:0')
+            .output('pipe:1', format='wav', acodec='pcm_s16le', ac=1, ar='44100')
+            .run(input=webm_audio, capture_stdout=True, capture_stderr=True)
+        )
+
+        wav_bytes = process[0]
+        wav_io = io.BytesIO(wav_bytes)
         wav_io.seek(0)
+
 
         data, samplerate = sf.read(wav_io)
         num_samples = len(data)
