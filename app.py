@@ -25,6 +25,8 @@ def index():
 
 
 
+from ffmpeg import Error as FFmpegError
+
 @app.route('/upload', methods=['POST'])
 def upload_audio():
     if 'file' not in request.files:
@@ -38,21 +40,28 @@ def upload_audio():
         print(f"Time: {time.time()}")
         print(f"Uploaded audio size: {len(webm_audio)} bytes")
 
-        if len(webm_audio) == 0:
-            print("Error: Empty audio file received.")
-            return jsonify({'error': 'Uploaded audio file is empty'}), 400
+        # Safety check for bad recordings
+        if len(webm_audio) < 1000:
+            print(f"❌ Audio upload too small: {len(webm_audio)} bytes — skipping ffmpeg.")
+            return jsonify({'error': f'Audio upload too small: {len(webm_audio)} bytes. Try again.'}), 400
 
-        # Convert webm to wav using ffmpeg
-        out, err = (
-            ffmpeg
-            .input('pipe:0')
-            .output('pipe:1', format='wav', acodec='pcm_s16le', ac=1, ar='44100')
-            .run(input=webm_audio, capture_stdout=True, capture_stderr=True)
-        )
 
-        print("FFMPEG stderr output:")
-        print(err.decode())
+        try:
+            out, err = (
+                ffmpeg
+                .input('pipe:0')
+                .output('pipe:1', format='wav', acodec='pcm_s16le', ac=1, ar='44100')
+                .run(input=webm_audio, capture_stdout=True, capture_stderr=True)
+            )
+            print("FFMPEG stderr output:")
+            print(err.decode())
 
+        except FFmpegError as fferr:
+            print("FFMPEG failed:")
+            print(fferr.stderr.decode())
+            return jsonify({'error': 'FFMPEG failed to process audio. Possibly invalid or corrupt input.'}), 400
+
+        # Load WAV data
         wav_io = io.BytesIO(out)
         wav_io.seek(0)
 
@@ -65,6 +74,7 @@ def upload_audio():
 
         time_axis = np.linspace(0, duration_sec, len(data))
 
+        # Plot waveform
         fig = plt.figure(figsize=(8, 3))
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(time_axis, data, linewidth=1)
@@ -102,8 +112,9 @@ def upload_audio():
         })
 
     except Exception as e:
-        print("Exception occurred:", str(e))
+        print("Unexpected exception occurred:", str(e))
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
