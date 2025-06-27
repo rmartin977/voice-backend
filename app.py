@@ -1,4 +1,6 @@
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+
 import ffmpeg
 
 import io
@@ -12,6 +14,8 @@ import base64
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 app = Flask(__name__)
+CORS(app)
+
 
 @app.route('/')
 def index():
